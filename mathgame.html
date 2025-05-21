@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Bike Race</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a1a1a; /* Darker background */
+            color: white;
+            justify-content: center;
+            align-items: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        #game-container {
+            display: flex;
+            width: 95%; /* Slightly larger game area */
+            max-width: 1400px; /* Cap max width */
+            height: 95%;
+            max-height: 800px; /* Cap max height */
+            border: 8px solid #555;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #race-view {
+            flex: 2;
+            background: linear-gradient(to bottom, #7a7a7a 0%, #3a3a3a 100%); /* Graded track background */
+            position: relative;
+            overflow: hidden;
+        }
+
+        .track-line {
+            position: absolute;
+            width: 100%;
+            height: 5px;
+            background-color: rgba(255, 255, 255, 0.5);
+            left: 0;
+            opacity: 0.8;
+            box-shadow: 0 0 5px rgba(255,255,255,0.3);
+        }
+
+        .lane-divider {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        #finish-line {
+            position: absolute;
+            width: 100%;
+            height: 5px;
+            background-color: #ff0000; /* Red finish line */
+            border-top: 2px dashed rgba(255,255,255,0.7);
+            z-index: 5; /* Above track lines, below bikes */
+            text-align: center;
+            line-height: 5px;
+            color: white;
+            font-size: 0.8em;
+        }
+        #finish-line span {
+            position: absolute;
+            top: -20px; /* Position text above the line */
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+
+        #math-problem-area {
+            flex: 1;
+            background-color: #222; /* Slightly different dark background */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+            border-left: 4px solid #555;
+            font-size: 0.9em;
+        }
+
+        #problem-text {
+            font-size: 3.8em; /* Larger problem text */
+            margin: 20px 0;
+            min-height: 1.2em;
+            color: #ffe066; /* Yellowish for emphasis */
+        }
+
+        #answer-display {
+            font-size: 2.8em;
+            padding: 10px 20px;
+            border: 3px solid #6c5ce7; /* Purple border */
+            min-width: 150px;
+            min-height: 1.5em;
+            text-align: center;
+            background-color: #111;
+            color: #00ff00; /* Bright green for input */
+            letter-spacing: 3px;
+            box-shadow: inset 0 0 8px rgba(0,255,0,0.5);
+        }
+
+        #feedback-message {
+            margin-top: 15px;
+            font-size: 1.8em;
+            color: #ffd700;
+            min-height: 1.5em;
+        }
+
+        #new-game-button {
+            display: none; /* Hidden until race ends */
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 1.5em;
+            background-color: #28a745; /* Green for new game */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+        #new-game-button:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+        }
+        #new-game-button:active {
+            transform: translateY(1px);
+        }
+
+
+        .bike {
+            position: absolute;
+            width: 70px;
+            height: 40px;
+            background-color: #007bff; /* Default blue for generic bike */
+            left: 0;
+            bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8em;
+            color: black;
+            font-weight: bold;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.6);
+            transition: transform 0.1s ease-out, bottom 0.05s linear; /* Smooth movement, quicker visual updates */
+            will-change: transform, bottom; /* Optimize animation */
+        }
+        .bike.player { background-color: #66ff66; color: black; border: 2px solid #00aa00; } /* Player: bright green */
+        .bike.ghost { background-color: rgba(108, 92, 231, 0.7); color: white; border: 2px solid #554a9f;} /* Ghost: semi-transparent purple */
+        .bike.ai { background-color: #ffa500; color: black; border: 2px solid #cc8400;} /* AI: orange */
+        .bike-initials { font-size: 0.8em; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .bike-speed { font-size: 0.6em; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); opacity: 0.8; }
+
+
+        #pre-game-setup {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9); /* More opaque */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            font-size: 1em;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #initials-input-group, #problem-mode-group, #difficulty-selection-group {
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        #initials-input {
+            padding: 12px;
+            font-size: 1.6em;
+            width: 180px;
+            text-align: center;
+            background-color: #111;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            text-transform: uppercase;
+            box-shadow: inset 0 0 8px rgba(0,255,0,0.5);
+        }
+        .start-button {
+            padding: 18px 35px;
+            font-size: 2em;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            margin-top: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        .start-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        .start-button:active {
+            transform: translateY(1px);
+        }
+
+        .radio-group, .select-group {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping for many options */
+            justify-content: center;
+            gap: 15px 25px; /* Row and column gap */
+            margin-top: 15px;
+            font-size: 1.1em;
+        }
+        .radio-group label, .select-group label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .radio-group input[type="radio"] {
+            transform: scale(1.6); /* Larger radio buttons */
+            accent-color: #6c5ce7; /* Custom color for radio button */
+        }
+        #difficulty-dropdown {
+            padding: 10px;
+            font-size: 1.2em;
+            background-color: #111;
+            color: #ffe066;
+            border: 2px solid #6c5ce7;
+            border-radius: 5px;
+            cursor: pointer;
+            appearance: none; /* Remove default dropdown arrow */
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffe066%22%20d%3D%22M287%20197.8L154.5%2065.3c-2.4-2.4-5.6-3.7-9-3.7s-6.6%201.3-9%203.7L5.4%20197.8c-4.8%204.8-4.8%2012.5%200%2017.3l20.4%2020.4c4.8%204.8%2012.5%204.8%2017.3%200l113.8-113.8L249.2%20235.5c4.8%204.8%2012.5%204.8%2017.3%200l20.4-20.4c4.8-4.8%204.8-12.5%200-17.3z%22%2F%3E%3C%2Fsvg%3E'); /* Custom dropdown arrow */
+            background-repeat: no-repeat;
+            background-position: right 10px top 50%;
+            background-size: 12px auto;
+        }
+        #difficulty-dropdown option {
+            background-color: #222;
+            color: white;
+            font-size: 0.9em;
+        }
+
+        #countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12em; /* Even bigger countdown */
+            color: #ffe066;
+            z-index: 10;
+            text-shadow: 6px 6px 12px rgba(0,0,0,0.9);
+            display: none;
+            animation: bounceIn 0.5s ease-out; /* Simple bounce animation */
+        }
+        @keyframes bounceIn {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            80% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 900px) {
+            #game-container {
+                flex-direction: column; /* Stack race and problem vertically on small screens */
+                width: 98%;
+                height: 98%;
+            }
+            #race-view, #math-problem-area {
+                flex: 1; /* Equal height distribution */
+                border-left: none;
+                border-top: 4px solid #555;
+            }
+            #math-problem-area { padding: 10px; font-size: 0.8em; }
+            #problem-text { font-size: 2.5em; }
+            #answer-display { font-size: 2em; }
+            #countdown { font-size: 8em; }
+            #pre-game-setup { font-size: 0.8em; }
+            .start-button { font-size: 1.5em; padding: 12px 25px; }
+            #initials-input { font-size: 1.2em; width: 120px; }
+            .radio-group, .select-group { font-size: 1em; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="race-view">
+            <div id="finish-line"><span>FINISH</span></div>
+            </div>
+
+        <div id="math-problem-area">
+            <h1>Math Bike Race</h1>
+            <div id="problem-text"></div>
+            <div id="answer-display"></div>
+            <div id="feedback-message"></div>
+            <button id="new-game-button">New Game</button>
+        </div>
+    </div>
+
+    <div id="pre-game-setup">
+        <div id="initials-input-group">
+            <label for="initials-input">Enter Your Initials (Max 3):</label><br>
+            <input type="text" id="initials-input" maxlength="3" value="PLY">
+        </div>
+        <div id="problem-mode-group">
+            <label>Select Problem Mode:</label>
+            <div class="radio-group">
+                <input type="radio" id="mode-addition" name="problemMode" value="addition" checked>
+                <label for="mode-addition">Addition</label>
+                <input type="radio" id="mode-multiplication" name="problemMode" value="multiplication">
+                <label for="mode-multiplication">Multiplication</label>
+            </div>
+        </div>
+        <div id="difficulty-selection-group">
+            <label>Select Difficulty:</label>
+            <select id="difficulty-dropdown"></select>
+        </div>
+        <button id="start-game-button" class="start-button">Start Race</button>
+    </div>
+
+    <div id="countdown"></div>
+
+    <script>
+        // --- Game Constants ---
+        const RACE_DISTANCE = 1000; // Virtual units for the race length
+        const SPEED_INCREMENT_PER_CORRECT_ANSWER = 0.546; // Calculated to target ~1 min race for 1 problem/sec
+        const AI_SPEED_REDUCTION_FACTOR = 0.75; // Bots accelerate at 75% of player's rate
+        const NUM_LANES = 8;
+        const PLAYER_LANE = 0; // Player is always in the first lane (0-indexed)
+
+        // --- Game State Variables ---
+        let gameStarted = false;
+        let playerAnswer = '';
+        let currentProblem = {}; // { question: "5+3", answer: 8 }
+        let bikes = []; // Array to hold objects for each bike (player, ghost, AI)
+        let gameTime = 0; // Milliseconds elapsed since race start
+        let animationFrameId; // Stores the requestAnimationFrame ID
+
+        // --- DOM Elements ---
+        const raceView = document.getElementById('race-view');
+        const problemText = document.getElementById('problem-text');
+        const answerDisplay = document.getElementById('answer-display');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const preGameSetup = document.getElementById('pre-game-setup');
+        const initialsInput = document.getElementById('initials-input');
+        const startGameButton = document.getElementById('start-game-button');
+        const countdownDisplay = document.getElementById('countdown');
+        const problemModeRadios = document.querySelectorAll('input[name="problemMode"]');
+        const difficultyDropdown = document.getElementById('difficulty-dropdown');
+        const newGameButton = document.getElementById('new-game-button');
+        const finishLineElement = document.getElementById('finish-line');
+
+        // --- Local Storage Management ---
+        const STORAGE_KEY = 'mathBikeRaceDataV4'; // Updated versioned key
+        let gameData = {
+            lastInitials: 'PLY',
+            raceData: { // Nested object for mode and difficulty
+                addition: {
+                    'single-digit': [],
+                    'two-digit': [],
+                    'three-digit': []
+                },
+                multiplication: {
+                    '3x3': [], '4x4': [], '5x5': [], '6x6': [], '7x7': [],
+                    '8x8': [], '9x9': [], '10x10': [], '11x11': [], '12x12': []
+                }
+            }
+        };
+        let playerInitials = 'PLY';
+        let selectedProblemMode = 'addition';
+        let selectedDifficulty = 'single-digit'; // Default difficulty for addition
+
+        // --- Track & Visuals Variables ---
+        let trackLines = [];
+        const NUM_TRACK_LINES = 10;
+        const TRACK_LINE_HEIGHT = 5;
+        const TRACK_LINE_GAP = 120;
+        let trackLineScrollOffset = 0;
+
+        // --- Game Initialization ---
+        function initGame() {
+            loadGameData();
+            setupInitialUI();
+            createTrackElements(); // This also places the finish line
+            document.addEventListener('keydown', handleKeyPress);
+            startGameButton.addEventListener('click', showCountdownAndStart);
+            newGameButton.addEventListener('click', showPreGameSetup); // New handler for New Game button
+
+            // Event listeners for mode and difficulty changes
+            problemModeRadios.forEach(radio => {
+                radio.addEventListener('change', (event) => {
+                    selectedProblemMode = event.target.value;
+                    populateDifficultyDropdown(); // Update difficulties based on mode
+                });
+            });
+            difficultyDropdown.addEventListener('change', (event) => {
+                selectedDifficulty = event.target.value;
+            });
+
+            // Initial population of difficulty dropdown
+            populateDifficultyDropdown();
+        }
+
+        function setupInitialUI() {
+            problemText.textContent = '';
+            answerDisplay.textContent = '';
+            feedbackMessage.textContent = '';
+            countdownDisplay.style.display = 'none';
+            initialsInput.value = gameData.lastInitials || 'PLY';
+            playerInitials = initialsInput.value;
+            newGameButton.style.display = 'none'; // Hide New Game button initially
+
+            // Set default checked radio button if not found in saved data or if problem mode not present
+            const savedModeRadio = document.getElementById(`mode-${selectedProblemMode}`);
+            if (savedModeRadio) {
+                savedModeRadio.checked = true;
+            } else {
+                document.getElementById('mode-addition').checked = true;
+                selectedProblemMode = 'addition';
+            }
+        }
+
+        function createTrackElements() {
+            raceView.querySelectorAll('.lane-divider, .track-line').forEach(el => el.remove());
+            trackLines = []; // Clear array
+
+            // Lane dividers
+            for (let i = 0; i < NUM_LANES; i++) {
+                const divider = document.createElement('div');
+                divider.classList.add('lane-divider');
+                divider.style.left = `${(i / NUM_LANES) * 100}%`;
+                raceView.appendChild(divider);
+            }
+
+            // Track lines (initial positions)
+            for (let i = 0; i < NUM_TRACK_LINES; i++) {
+                const line = document.createElement('div');
+                line.classList.add('track-line');
+                line.style.top = `${i * TRACK_LINE_GAP}px`;
+                raceView.appendChild(line);
+                trackLines.push(line);
+            }
+
+            // Ensure finish line is present and correctly positioned
+            finishLineElement.style.display = 'block'; // Ensure visible when race view is active
+        }
+
+        function populateDifficultyDropdown() {
+            difficultyDropdown.innerHTML = ''; // Clear existing options
+            let difficulties = [];
+
+            switch (selectedProblemMode) {
+                case 'addition':
+                    difficulties = [
+                        { value: 'single-digit', text: 'Single Digit (1-9)' },
+                        { value: 'two-digit', text: 'Two Digit (10-99)' },
+                        { value: 'three-digit', text: 'Three Digit (100-999)' }
+                    ];
+                    break;
+                case 'multiplication':
+                    for (let i = 3; i <= 12; i++) {
+                        difficulties.push({ value: `${i}x${i}`, text: `${i}x${i} (1-${i} x 1-${i})` });
+                    }
+                    break;
+            }
+
+            difficulties.forEach(diff => {
+                const option = document.createElement('option');
+                option.value = diff.value;
+                option.textContent = diff.text;
+                difficultyDropdown.appendChild(option);
+            });
+
+            const currentSelected = difficultyDropdown.querySelector(`option[value="${selectedDifficulty}"]`);
+            if (currentSelected) {
+                difficultyDropdown.value = selectedDifficulty;
+            } else {
+                selectedDifficulty = difficulties[0].value;
+                difficultyDropdown.value = selectedDifficulty;
+            }
+        }
+
+        // --- Game Data Loading and Saving ---
+        function loadGameData() {
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            if (storedData) {
+                try {
+                    const parsedData = JSON.parse(storedData);
+                    gameData = { ...gameData, ...parsedData };
+                    gameData.raceData = { ...gameData.raceData, ...parsedData.raceData };
+
+                    for (const mode in gameData.raceData) {
+                        if (parsedData.raceData && parsedData.raceData[mode]) {
+                            gameData.raceData[mode] = { ...gameData.raceData[mode], ...parsedData.raceData[mode] };
+                        } else if (!gameData.raceData[mode]) {
+                            gameData.raceData[mode] = {};
+                        }
+                        for (const diff in gameData.raceData[mode]) {
+                             if (!gameData.raceData[mode][diff]) {
+                                 gameData.raceData[mode][diff] = [];
+                             }
+                        }
+                    }
+                    initialsInput.value = gameData.lastInitials || 'PLY';
+                    playerInitials = initialsInput.value;
+                } catch (e) {
+                    console.error("Error parsing localStorage data:", e);
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+            }
+        }
+
+        function saveGameData() {
+            gameData.lastInitials = playerInitials;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(gameData));
+        }
+
+        // --- Bike Setup & AI Logic ---
+        function setupBikes() {
+            bikes.forEach(bike => bike.element.remove());
+            bikes = [];
+
+            const playerBikeEl = document.createElement('div');
+            playerBikeEl.classList.add('bike', 'player');
+            playerBikeEl.id = `player-bike`;
+            playerBikeEl.innerHTML = `<span class="bike-initials">${playerInitials}</span><span class="bike-speed">0.0</span>`; /* Removed 'spd' */
+            raceView.appendChild(playerBikeEl);
+            bikes.push({
+                id: `player-bike`,
+                initials: playerInitials,
+                lane: PLAYER_LANE,
+                totalDistance: 0,
+                currentSpeed: 0,
+                element: playerBikeEl,
+                isPlayer: true,
+                isGhost: false,
+                speedHistory: []
+            });
+
+            const currentModeDifficultyData = gameData.raceData[selectedProblemMode]?.[selectedDifficulty] || [];
+            const availableGhosts = currentModeDifficultyData
+                                    .sort((a, b) => a.durationMs - b.durationMs)
+                                    .slice(0, NUM_LANES - 1);
+
+            availableGhosts.forEach((ghostRun, index) => {
+                const ghostBikeEl = document.createElement('div');
+                ghostBikeEl.classList.add('bike', 'ghost');
+                ghostBikeEl.id = `ghost-bike-${index}`;
+                ghostBikeEl.innerHTML = `<span class="bike-initials">${ghostRun.initials}</span><span class="bike-speed">0.0</span>`; /* Removed 'spd' */
+                raceView.appendChild(ghostBikeEl);
+                bikes.push({
+                    id: `ghost-bike-${index}`,
+                    initials: ghostRun.initials,
+                    lane: index + 1,
+                    totalDistance: 0,
+                    currentSpeed: 0,
+                    element: ghostBikeEl,
+                    isPlayer: false,
+                    isGhost: true,
+                    ghostHistory: ghostRun.speedHistory,
+                    ghostHistoryIndex: 0
+                });
+            });
+
+            for (let i = bikes.length; i < NUM_LANES; i++) {
+                const aiBikeEl = document.createElement('div');
+                aiBikeEl.classList.add('bike', 'ai');
+                aiBikeEl.id = `bot-bike-${i}`;
+                aiBikeEl.innerHTML = `<span class="bike-initials">BOT${i + 1}</span><span class="bike-speed">0.0</span>`; /* Removed 'spd' */
+                raceView.appendChild(aiBikeEl);
+                bikes.push({
+                    id: `bot-bike-${i}`,
+                    initials: `BOT${i + 1}`,
+                    lane: i,
+                    totalDistance: 0,
+                    currentSpeed: 0,
+                    element: aiBikeEl,
+                    isPlayer: false,
+                    isGhost: false,
+                    aiAnswerInterval: (1000 + Math.random() * 500)
+                });
+            }
+            bikes.sort((a,b) => a.lane - b.lane);
+        }
+
+        // --- Countdown & Game Start ---
+        function showCountdownAndStart() {
+            playerInitials = initialsInput.value.toUpperCase().slice(0, 3);
+            if (!playerInitials) {
+                alert("Please enter your initials!");
+                return;
+            }
+
+            preGameSetup.style.display = 'none';
+            countdownDisplay.style.display = 'block';
+            problemText.style.visibility = 'hidden';
+
+            setupBikes();
+            resetGameStates(); // Reset bike positions and speeds for the new race
+
+            let count = 3;
+            countdownDisplay.textContent = count;
+            const countdownInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownDisplay.textContent = count;
+                } else if (count === 0) {
+                    countdownDisplay.textContent = 'GO!';
+                } else {
+                    clearInterval(countdownInterval);
+                    countdownDisplay.style.display = 'none';
+                    startGame();
+                }
+            }, 1000);
+        }
+
+        function startGame() {
+            gameStarted = true;
+            problemText.style.visibility = 'visible';
+            displayNewProblem();
+            gameTime = 0;
+            lastFrameTime = performance.now();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // --- Main Game Loop ---
+        let lastFrameTime = 0;
+        function gameLoop(currentTime) {
+            if (!gameStarted) return;
+
+            const deltaTime = currentTime - lastFrameTime;
+            lastFrameTime = currentTime;
+
+            const cappedDeltaTime = Math.min(deltaTime, 100);
+
+            gameTime += cappedDeltaTime;
+
+            let leaderDistance = 0;
+            bikes.forEach(bike => {
+                if (!bike.isPlayer && !bike.isGhost) {
+                    if (gameTime >= (bike._nextAiAnswerTime || 0)) {
+                        bike.currentSpeed += (SPEED_INCREMENT_PER_CORRECT_ANSWER * AI_SPEED_REDUCTION_FACTOR); // AI acceleration reduced
+                        bike._nextAiAnswerTime = gameTime + bike.aiAnswerInterval;
+                    }
+                } else if (bike.isGhost) {
+                    let ghostSpeedForThisTime = bike.currentSpeed;
+                    while (bike.ghostHistoryIndex < bike.ghostHistory.length &&
+                           bike.ghostHistory[bike.ghostHistoryIndex].t <= gameTime) {
+                        ghostSpeedForThisTime = bike.ghostHistory[bike.ghostHistoryIndex].s;
+                        bike.ghostHistoryIndex++;
+                    }
+                    bike.currentSpeed = ghostSpeedForThisTime;
+                }
+
+                bike.totalDistance += bike.currentSpeed * (cappedDeltaTime / 1000);
+
+                if (bike.isPlayer && gameStarted) {
+                    const lastHistoryEntry = bike.speedHistory[bike.speedHistory.length - 1];
+                    if (!lastHistoryEntry ||
+                        Math.abs(lastHistoryEntry.s - bike.currentSpeed) > 0.001 ||
+                        (gameTime - lastHistoryEntry.t) >= 100
+                    ) {
+                       bike.speedHistory.push({ t: Math.round(gameTime), s: bike.currentSpeed });
+                    }
+                }
+
+                if (bike.totalDistance > leaderDistance) {
+                    leaderDistance = bike.totalDistance;
+                }
+
+                bike.element.querySelector('.bike-speed').textContent = `${bike.currentSpeed.toFixed(1)}`; /* Removed 'spd' */
+            });
+
+            updateBikePositions(leaderDistance);
+            updateTrackLines(leaderDistance);
+            updateFinishLinePosition(leaderDistance);
+
+            const leader = bikes.reduce((prev, current) => (prev.totalDistance > current.totalDistance) ? prev : current);
+            if (leader.totalDistance >= RACE_DISTANCE) {
+                cancelAnimationFrame(animationFrameId);
+                endGame(leader);
+                return;
+            }
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateBikePositions(leaderDistance) {
+            const raceViewHeight = raceView.clientHeight;
+            const laneWidth = raceView.clientWidth / NUM_LANES;
+            const PLAYER_ANCHOR_Y = raceViewHeight * 0.2; // Player tries to stay 20% from bottom
+
+            bikes.forEach(bike => {
+                const playerBike = bikes.find(b => b.isPlayer);
+                if (!playerBike) return;
+
+                let relativeDistanceToPlayer = bike.totalDistance - playerBike.totalDistance;
+
+                const DISTANCE_TO_PIXEL_SCALE = raceViewHeight / (RACE_DISTANCE * 2);
+
+                let visualBottomPos = PLAYER_ANCHOR_Y + (relativeDistanceToPlayer * DISTANCE_TO_PIXEL_SCALE);
+
+                bike.element.style.left = `${bike.lane * laneWidth + (laneWidth - bike.element.clientWidth) / 2}px`;
+
+                if (visualBottomPos < -bike.element.clientHeight * 2 || visualBottomPos > raceViewHeight + bike.element.clientHeight * 2) {
+                     bike.element.style.display = 'none';
+                }
+                else {
+                     bike.element.style.display = 'flex';
+                     bike.element.style.bottom = `${visualBottomPos}px`;
+                }
+            });
+        }
+
+        function updateTrackLines(leaderDistance) {
+            const raceViewHeight = raceView.clientHeight;
+            const currentLeaderSpeed = bikes.reduce((max, bike) => Math.max(max, bike.currentSpeed), 0);
+            const lineSpeedMultiplier = 0.05;
+
+            trackLineScrollOffset += currentLeaderSpeed * lineSpeedMultiplier;
+
+            trackLines.forEach((line, index) => {
+                let basePosition = index * TRACK_LINE_GAP;
+                let currentVisualTop = (basePosition + trackLineScrollOffset) % (raceViewHeight + TRACK_LINE_GAP);
+
+                if (currentVisualTop > raceViewHeight) {
+                    currentVisualTop -= (raceViewHeight + TRACK_LINE_GAP);
+                }
+                line.style.top = `${currentVisualTop}px`;
+            });
+        }
+
+        function updateFinishLinePosition(leaderDistance) {
+            const raceViewHeight = raceView.clientHeight;
+            const playerBike = bikes.find(b => b.isPlayer);
+            if (!playerBike) return;
+
+            const finishLineVirtualDistance = RACE_DISTANCE;
+            const relativeDistanceToPlayer = finishLineVirtualDistance - playerBike.totalDistance;
+
+            const DISTANCE_TO_PIXEL_SCALE = raceViewHeight / (RACE_DISTANCE * 2);
+
+            let visualBottomPos = (raceViewHeight * 0.2) + (relativeDistanceToPlayer * DISTANCE_TO_PIXEL_SCALE);
+
+            // Cap the finish line at a fixed position near the top when it becomes visible
+            const FINISH_LINE_VISIBLE_Y = raceViewHeight - finishLineElement.clientHeight - 50; // Example: 50px from top
+            visualBottomPos = Math.max(visualBottomPos, FINISH_LINE_VISIBLE_Y);
+
+            finishLineElement.style.bottom = `${visualBottomPos}px`;
+        }
+
+        // --- Math Problem Logic ---
+        function getRandomNumber(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function generateProblem() {
+            let num1, num2, question, answer, operation;
+
+            switch (selectedProblemMode) {
+                case 'addition':
+                    switch (selectedDifficulty) {
+                        case 'single-digit':
+                            num1 = getRandomNumber(1, 9);
+                            num2 = getRandomNumber(1, 9);
+                            break;
+                        case 'two-digit':
+                            num1 = getRandomNumber(10, 99);
+                            num2 = getRandomNumber(10, 99);
+                            break;
+                        case 'three-digit':
+                            num1 = getRandomNumber(100, 999);
+                            num2 = getRandomNumber(100, 999);
+                            break;
+                    }
+                    operation = '+';
+                    answer = num1 + num2;
+                    break;
+
+                case 'multiplication':
+                    const maxFactor = parseInt(selectedDifficulty.split('x')[0]);
+                    num1 = getRandomNumber(1, maxFactor);
+                    num2 = getRandomNumber(1, maxFactor);
+                    operation = '*';
+                    answer = num1 * num2;
+                    break;
+            }
+            question = `${num1} ${operation} ${num2}`;
+            return { question, answer };
+        }
+
+        function displayNewProblem() {
+            currentProblem = generateProblem();
+            problemText.textContent = currentProblem.question;
+            answerDisplay.textContent = '';
+            playerAnswer = '';
+            feedbackMessage.textContent = '';
+        }
+
+        function checkAnswer() {
+            const playerBike = bikes.find(bike => bike.isPlayer);
+            if (parseInt(playerAnswer) === currentProblem.answer) {
+                feedbackMessage.textContent = 'Correct!';
+                playerBike.currentSpeed += SPEED_INCREMENT_PER_CORRECT_ANSWER;
+                playerBike.element.style.transform = `scale(1.1)`;
+                setTimeout(() => { playerBike.element.style.transform = `scale(1)`; }, 100);
+                displayNewProblem();
+            } else {
+                feedbackMessage.textContent = 'Try again!';
+            }
+            answerDisplay.textContent = '';
+            playerAnswer = '';
+        }
+
+        // --- Input Handling ---
+        function handleKeyPress(event) {
+            if (!gameStarted) return;
+
+            const key = event.key;
+            if (key >= '0' && key <= '9') {
+                playerAnswer += key;
+                answerDisplay.textContent = playerAnswer;
+            } else if (key === 'Enter') {
+                if (playerAnswer !== '') {
+                    checkAnswer();
+                }
+            } else if (key === 'Backspace') {
+                playerAnswer = playerAnswer.slice(0, -1);
+                answerDisplay.textContent = playerAnswer;
+            }
+        }
+
+        // --- End Game ---
+        function endGame(winner) {
+            gameStarted = false;
+            cancelAnimationFrame(animationFrameId);
+
+            let message = '';
+            const playerBike = bikes.find(bike => bike.isPlayer);
+            const raceDuration = gameTime;
+
+            if (!gameData.raceData[selectedProblemMode]) {
+                gameData.raceData[selectedProblemMode] = {};
+            }
+            if (!gameData.raceData[selectedProblemMode][selectedDifficulty]) {
+                gameData.raceData[selectedProblemMode][selectedDifficulty] = [];
+            }
+
+            gameData.raceData[selectedProblemMode][selectedDifficulty].push({
+                initials: playerInitials,
+                timestamp: new Date().toISOString(),
+                durationMs: raceDuration,
+                finalDistance: playerBike.totalDistance,
+                speedHistory: playerBike.speedHistory
+            });
+            gameData.raceData[selectedProblemMode][selectedDifficulty].sort((a,b) => a.durationMs - b.durationMs);
+            gameData.raceData[selectedProblemMode][selectedDifficulty] = gameData.raceData[selectedProblemMode][selectedDifficulty].slice(0, 10);
+
+            saveGameData();
+
+            // Updated ending message logic
+            if (winner.isPlayer) {
+                message = `You Win! You finished in ${(raceDuration / 1000).toFixed(2)} seconds!`;
+                feedbackMessage.style.color = 'gold';
+            } else {
+                // If a BOT or GHOST won, state who won, then player's time
+                message = `${winner.initials} Won the race! You finished in ${(raceDuration / 1000).toFixed(2)} seconds.`;
+                feedbackMessage.style.color = 'orange';
+            }
+            feedbackMessage.textContent = message;
+
+            newGameButton.style.display = 'block'; // Show the New Game button
+            // The pre-game-setup overlay remains hidden until the New Game button is clicked
+        }
+
+        // --- Reset and New Game Flow ---
+        function showPreGameSetup() {
+            newGameButton.style.display = 'none'; // Hide itself
+            preGameSetup.style.display = 'flex'; // Show the setup overlay
+            resetGameStates(); // Reset game elements visually and logically
+            feedbackMessage.style.color = '#ffd700'; // Reset feedback color
+            feedbackMessage.textContent = ''; // Clear result message
+            createTrackElements(); // Recreate track lines and set them to initial positions
+        }
+
+        function resetGameStates() {
+            bikes.forEach(bike => {
+                bike.totalDistance = 0;
+                bike.currentSpeed = 0;
+                bike.element.style.bottom = '20px';
+                bike.element.style.display = 'flex';
+                bike.element.querySelector('.bike-speed').textContent = '0.0'; /* Removed 'spd' */
+                if (bike.isPlayer) {
+                    bike.speedHistory = [];
+                } else if (bike.isGhost) {
+                    bike.ghostHistoryIndex = 0;
+                } else if (!bike.isPlayer && !bike.isGhost) {
+                    bike._nextAiAnswerTime = gameTime + bike.aiAnswerInterval;
+                }
+            });
+            gameTime = 0;
+            playerAnswer = '';
+            displayNewProblem();
+            trackLineScrollOffset = 0; // Reset track scroll
+            updateFinishLinePosition(0); // Reset finish line position
+        }
+
+        // Initialize the game when the page loads
+        document.addEventListener('DOMContentLoaded', initGame);
+
+    </script>
+</body>
+</html>
