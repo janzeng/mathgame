@@ -375,7 +375,7 @@
                     'three-digit': []
                 },
                 multiplication: {
-                    '3x3': [], '4x4': [], '5x5': [], '6x6': [], '7x7': [],
+                    '2x2': [], '3x3': [], '4x4': [], '5x5': [], '6x6': [], '7x7': [],
                     '8x8': [], '9x9': [], '10x10': [], '11x11': [], '12x12': []
                 }
             }
@@ -472,7 +472,7 @@
                     ];
                     break;
                 case 'multiplication':
-                    for (let i = 3; i <= 12; i++) {
+                    for (let i = 2; i <= 12; i++) {
                         difficulties.push({ value: `${i}x${i}`, text: `${i}x${i} (1-${i} x 1-${i})` });
                     }
                     break;
@@ -749,49 +749,30 @@
             const playerBike = bikes.find(b => b.isPlayer);
             if (!playerBike) return;
 
-            // The finish line is at RACE_DISTANCE virtual units.
-            // Calculate its visual position based on player's progress and a target screen Y for the finish line.
-            // As player's totalDistance goes from 0 to RACE_DISTANCE,
-            // the finish line's visual bottom position should go from below screen to its final position (e.g., 90% up).
-
-            const FINISH_LINE_TARGET_Y_PERCENT = 0.9; // Finish line settles at 90% of race view height from bottom
-            const FINISH_LINE_TARGET_BOTTOM_PX = raceViewHeight * FINISH_LINE_TARGET_Y_PERCENT;
-
-            // Determine how far the finish line is from the player in virtual units.
-            // When player is at 0, this is RACE_DISTANCE. When player is at RACE_DISTANCE, this is 0.
-            const virtualDistanceToFinish = RACE_DISTANCE - playerBike.totalDistance;
-
-            // Scale this virtual distance to a vertical pixel offset.
-            // This needs to be inverse: a larger virtual distance means the line is further down (smaller bottom value).
-            // A small virtualDistanceToFinish (player close to finish) means line is high (large bottom value).
-            // The scaling factor needs to be such that when virtualDistanceToFinish is 0, the line is at FINISH_LINE_TARGET_BOTTOM_PX.
-            // And when virtualDistanceToFinish is large, it's far below screen.
-
-            // Let's assume the entire 'track' is 2 * RACE_DISTANCE virtual units for visual purposes.
-            // The finish line is at RACE_DISTANCE.
-            // The start line (relative to player) is at 0.
-            // Player is at some point between 0 and RACE_DISTANCE.
+            // The finish line's virtual position is RACE_DISTANCE.
+            // We want it to move down the screen as the player's totalDistance increases.
             
-            // Re-evaluating. A simpler way for a "scrolling" finish line:
-            // The finish line's visual position is directly tied to the *player's* progress.
-            // When player.totalDistance is 0, finish line is at bottom of screen (or off-screen).
-            // When player.totalDistance is RACE_DISTANCE, finish line is at target Y.
+            // Define the visual range on screen for the finish line's movement.
+            // It will move from START_TOP (off-screen above) to TARGET_TOP (near the top of the race view).
+            const TARGET_TOP = raceViewHeight * 0.1; // Settle 10% from the top of race-view
+            const START_TOP = -raceViewHeight * 1.5; // Start 1.5 screen heights above the top
             
-            // Calculate progress towards finish line as a percentage (0 to 1).
+            const totalVisualTravel = TARGET_TOP - START_TOP; // Total pixel distance the line will travel
+
+            // Calculate the player's progress ratio towards the finish line.
+            // This ratio will go from 0 (at start) to 1 (at finish).
             let progressRatio = playerBike.totalDistance / RACE_DISTANCE;
-            progressRatio = Math.min(progressRatio, 1); // Cap at 1 once player finishes
+            progressRatio = Math.min(Math.max(progressRatio, 0), 1); // Clamp between 0 and 1
 
-            // Map this ratio to a vertical position.
-            // Start from some negative offset (off-screen bottom) and move up to target Y.
-            const START_OFFSET = -raceViewHeight * 2; // Start 2 screen heights below
-            const totalTravelDistance = FINISH_LINE_TARGET_BOTTOM_PX - START_OFFSET;
+            // Calculate the current top position based on progressRatio.
+            // As progressRatio goes from 0 to 1, currentTop will go from START_TOP to TARGET_TOP.
+            let currentTop = START_TOP + (progressRatio * totalVisualTravel);
 
-            let finishLineBottom = START_OFFSET + (progressRatio * totalTravelDistance);
-            
-            finishLineElement.style.bottom = `${finishLineBottom}px`;
+            finishLineElement.style.top = `${currentTop}px`;
 
-            // Only display the finish line once it's somewhat on screen
-            if (finishLineBottom < -finishLineElement.clientHeight || finishLineBottom > raceViewHeight + finishLineElement.clientHeight) {
+            // Ensure visibility or hide if too far off-screen.
+            // If currentTop is very large (off-screen above) or below the screen.
+            if (currentTop < -finishLineElement.clientHeight || currentTop > raceViewHeight) {
                 finishLineElement.style.display = 'none';
             } else {
                 finishLineElement.style.display = 'block';
