@@ -314,7 +314,7 @@
     <div id="pre-game-setup">
         <div id="initials-input-group">
             <label for="initials-input">Enter Your Initials (Max 3):</label><br>
-            <input type="text" id="initials-input" maxlength="3" value="PLY">
+            <input type="text" id="initials-input" maxlength="3" value="P1">
         </div>
         <div id="problem-mode-group">
             <label>Select Problem Mode:</label>
@@ -338,7 +338,7 @@
         // --- Game Constants ---
         const RACE_DISTANCE = 1000; // Virtual units for the race length
         const SPEED_INCREMENT_PER_CORRECT_ANSWER = 0.546; // Calculated to target ~1 min race for 1 problem/sec
-        const AI_SPEED_REDUCTION_FACTOR = 0.75; // Bots accelerate at 75% of player's rate
+        const AI_SPEED_REDUCTION_FACTOR = 0.7; // Bots accelerate at 70% of player's rate
         const NUM_LANES = 8;
         const PLAYER_LANE = 0; // Player is always in the first lane (0-indexed)
 
@@ -367,7 +367,7 @@
         // --- Local Storage Management ---
         const STORAGE_KEY = 'mathBikeRaceDataV4'; // Updated versioned key
         let gameData = {
-            lastInitials: 'PLY',
+            lastInitials: 'P1',
             raceData: { // Nested object for mode and difficulty
                 addition: {
                     'single-digit': [],
@@ -380,7 +380,7 @@
                 }
             }
         };
-        let playerInitials = 'PLY';
+        let playerInitials = 'P1';
         let selectedProblemMode = 'addition';
         let selectedDifficulty = 'single-digit'; // Default difficulty for addition
 
@@ -420,7 +420,7 @@
             answerDisplay.textContent = '';
             feedbackMessage.textContent = '';
             countdownDisplay.style.display = 'none';
-            initialsInput.value = gameData.lastInitials || 'PLY';
+            initialsInput.value = gameData.lastInitials || 'P1';
             playerInitials = initialsInput.value;
             newGameButton.style.display = 'none'; // Hide New Game button initially
 
@@ -515,7 +515,7 @@
                              }
                         }
                     }
-                    initialsInput.value = gameData.lastInitials || 'PLY';
+                    initialsInput.value = gameData.lastInitials || 'P1';
                     playerInitials = initialsInput.value;
                 } catch (e) {
                     console.error("Error parsing localStorage data:", e);
@@ -830,7 +830,7 @@
                     const maxFactor = parseInt(selectedDifficulty.split('x')[0]);
                     num1 = getRandomNumber(1, maxFactor);
                     num2 = getRandomNumber(1, maxFactor);
-                    operation = '*';
+                    operation = 'x';
                     answer = num1 * num2;
                     break;
             }
