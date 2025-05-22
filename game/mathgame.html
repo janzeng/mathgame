@@ -537,7 +537,7 @@
             const playerBikeEl = document.createElement('div');
             playerBikeEl.classList.add('bike', 'player');
             playerBikeEl.id = `player-bike`;
-            playerBikeEl.innerHTML = `<span class="bike-initials">${playerInitials}</span><span class="bike-speed">0.0</span>`; /* Removed 'spd' */
+            playerBikeEl.innerHTML = `<span class="bike-initials">${playerInitials}</span><span class="bike-speed">0.0</span>`;
             raceView.appendChild(playerBikeEl);
             bikes.push({
                 id: `player-bike`,
@@ -560,7 +560,7 @@
                 const ghostBikeEl = document.createElement('div');
                 ghostBikeEl.classList.add('bike', 'ghost');
                 ghostBikeEl.id = `ghost-bike-${index}`;
-                ghostBikeEl.innerHTML = `<span class="bike-initials">${ghostRun.initials}</span><span class="bike-speed">0.0</span>`; /* Removed 'spd' */
+                ghostBikeEl.innerHTML = `<span class="bike-initials">${ghostRun.initials}</span><span class="bike-speed">0.0</span>`;
                 raceView.appendChild(ghostBikeEl);
                 bikes.push({
                     id: `ghost-bike-${index}`,
@@ -580,7 +580,7 @@
                 const aiBikeEl = document.createElement('div');
                 aiBikeEl.classList.add('bike', 'ai');
                 aiBikeEl.id = `bot-bike-${i}`;
-                aiBikeEl.innerHTML = `<span class="bike-initials">BOT${i + 1}</span><span class="bike-speed">0.0</span>`; /* Removed 'spd' */
+                aiBikeEl.innerHTML = `<span class="bike-initials">BOT${i + 1}</span><span class="bike-speed">0.0</span>`;
                 raceView.appendChild(aiBikeEl);
                 bikes.push({
                     id: `bot-bike-${i}`,
@@ -682,12 +682,12 @@
                     leaderDistance = bike.totalDistance;
                 }
 
-                bike.element.querySelector('.bike-speed').textContent = `${bike.currentSpeed.toFixed(1)}`; /* Removed 'spd' */
+                bike.element.querySelector('.bike-speed').textContent = `${bike.currentSpeed.toFixed(1)}`;
             });
 
             updateBikePositions(leaderDistance);
             updateTrackLines(leaderDistance);
-            updateFinishLinePosition(leaderDistance);
+            updateFinishLinePosition(); // No need for leaderDistance as it's self-contained now
 
             const leader = bikes.reduce((prev, current) => (prev.totalDistance > current.totalDistance) ? prev : current);
             if (leader.totalDistance >= RACE_DISTANCE) {
@@ -744,23 +744,58 @@
             });
         }
 
-        function updateFinishLinePosition(leaderDistance) {
+        function updateFinishLinePosition() {
             const raceViewHeight = raceView.clientHeight;
             const playerBike = bikes.find(b => b.isPlayer);
             if (!playerBike) return;
 
-            const finishLineVirtualDistance = RACE_DISTANCE;
-            const relativeDistanceToPlayer = finishLineVirtualDistance - playerBike.totalDistance;
+            // The finish line is at RACE_DISTANCE virtual units.
+            // Calculate its visual position based on player's progress and a target screen Y for the finish line.
+            // As player's totalDistance goes from 0 to RACE_DISTANCE,
+            // the finish line's visual bottom position should go from below screen to its final position (e.g., 90% up).
 
-            const DISTANCE_TO_PIXEL_SCALE = raceViewHeight / (RACE_DISTANCE * 2);
+            const FINISH_LINE_TARGET_Y_PERCENT = 0.9; // Finish line settles at 90% of race view height from bottom
+            const FINISH_LINE_TARGET_BOTTOM_PX = raceViewHeight * FINISH_LINE_TARGET_Y_PERCENT;
 
-            let visualBottomPos = (raceViewHeight * 0.2) + (relativeDistanceToPlayer * DISTANCE_TO_PIXEL_SCALE);
+            // Determine how far the finish line is from the player in virtual units.
+            // When player is at 0, this is RACE_DISTANCE. When player is at RACE_DISTANCE, this is 0.
+            const virtualDistanceToFinish = RACE_DISTANCE - playerBike.totalDistance;
 
-            // Cap the finish line at a fixed position near the top when it becomes visible
-            const FINISH_LINE_VISIBLE_Y = raceViewHeight - finishLineElement.clientHeight - 50; // Example: 50px from top
-            visualBottomPos = Math.max(visualBottomPos, FINISH_LINE_VISIBLE_Y);
+            // Scale this virtual distance to a vertical pixel offset.
+            // This needs to be inverse: a larger virtual distance means the line is further down (smaller bottom value).
+            // A small virtualDistanceToFinish (player close to finish) means line is high (large bottom value).
+            // The scaling factor needs to be such that when virtualDistanceToFinish is 0, the line is at FINISH_LINE_TARGET_BOTTOM_PX.
+            // And when virtualDistanceToFinish is large, it's far below screen.
 
-            finishLineElement.style.bottom = `${visualBottomPos}px`;
+            // Let's assume the entire 'track' is 2 * RACE_DISTANCE virtual units for visual purposes.
+            // The finish line is at RACE_DISTANCE.
+            // The start line (relative to player) is at 0.
+            // Player is at some point between 0 and RACE_DISTANCE.
+            
+            // Re-evaluating. A simpler way for a "scrolling" finish line:
+            // The finish line's visual position is directly tied to the *player's* progress.
+            // When player.totalDistance is 0, finish line is at bottom of screen (or off-screen).
+            // When player.totalDistance is RACE_DISTANCE, finish line is at target Y.
+            
+            // Calculate progress towards finish line as a percentage (0 to 1).
+            let progressRatio = playerBike.totalDistance / RACE_DISTANCE;
+            progressRatio = Math.min(progressRatio, 1); // Cap at 1 once player finishes
+
+            // Map this ratio to a vertical position.
+            // Start from some negative offset (off-screen bottom) and move up to target Y.
+            const START_OFFSET = -raceViewHeight * 2; // Start 2 screen heights below
+            const totalTravelDistance = FINISH_LINE_TARGET_BOTTOM_PX - START_OFFSET;
+
+            let finishLineBottom = START_OFFSET + (progressRatio * totalTravelDistance);
+            
+            finishLineElement.style.bottom = `${finishLineBottom}px`;
+
+            // Only display the finish line once it's somewhat on screen
+            if (finishLineBottom < -finishLineElement.clientHeight || finishLineBottom > raceViewHeight + finishLineElement.clientHeight) {
+                finishLineElement.style.display = 'none';
+            } else {
+                finishLineElement.style.display = 'block';
+            }
         }
 
         // --- Math Problem Logic ---
@@ -872,18 +907,16 @@
 
             saveGameData();
 
-            // Updated ending message logic
             if (winner.isPlayer) {
                 message = `You Win! You finished in ${(raceDuration / 1000).toFixed(2)} seconds!`;
                 feedbackMessage.style.color = 'gold';
             } else {
-                // If a BOT or GHOST won, state who won, then player's time
                 message = `${winner.initials} Won the race! You finished in ${(raceDuration / 1000).toFixed(2)} seconds.`;
                 feedbackMessage.style.color = 'orange';
             }
             feedbackMessage.textContent = message;
 
-            newGameButton.style.display = 'block'; // Show the New Game button
+            newGameButton.style.display = 'block';
             // The pre-game-setup overlay remains hidden until the New Game button is clicked
         }
 
@@ -903,7 +936,7 @@
                 bike.currentSpeed = 0;
                 bike.element.style.bottom = '20px';
                 bike.element.style.display = 'flex';
-                bike.element.querySelector('.bike-speed').textContent = '0.0'; /* Removed 'spd' */
+                bike.element.querySelector('.bike-speed').textContent = '0.0';
                 if (bike.isPlayer) {
                     bike.speedHistory = [];
                 } else if (bike.isGhost) {
@@ -916,7 +949,7 @@
             playerAnswer = '';
             displayNewProblem();
             trackLineScrollOffset = 0; // Reset track scroll
-            updateFinishLinePosition(0); // Reset finish line position
+            updateFinishLinePosition(); // Reset finish line position by calling it once
         }
 
         // Initialize the game when the page loads
