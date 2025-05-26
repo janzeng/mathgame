@@ -532,15 +532,25 @@
         }
 
         // --- Bike Setup & AI Logic ---
-        function setupBikes() {
+    function setupBikes() {
+            // Remove existing bikes from DOM
             bikes.forEach(bike => bike.element.remove());
-            bikes = [];
+            bikes = []; // Clear previous bike objects
 
+            // Calculate lane width once
+            const raceViewWidth = raceView.clientWidth;
+            const laneWidth = raceViewWidth / NUM_LANES;
+            const bikeWidth = 70; // From CSS: .bike width
+            const bikeLeftOffset = (laneWidth - bikeWidth) / 2; // To center bike in its lane
+
+            // Player bike
             const playerBikeEl = document.createElement('div');
             playerBikeEl.classList.add('bike', 'player');
             playerBikeEl.id = `player-bike`;
             playerBikeEl.innerHTML = `<span class="bike-initials">${playerInitials}</span><span class="bike-speed">0.0</span>`;
             raceView.appendChild(playerBikeEl);
+            // Set initial position for player bike
+            playerBikeEl.style.left = `${PLAYER_LANE * laneWidth + bikeLeftOffset}px`;
             bikes.push({
                 id: `player-bike`,
                 initials: playerInitials,
@@ -553,6 +563,7 @@
                 speedHistory: []
             });
 
+            // Add Ghosts (previous player runs for current mode/difficulty)
             const currentModeDifficultyData = gameData.raceData[selectedProblemMode]?.[selectedDifficulty] || [];
             const availableGhosts = currentModeDifficultyData
                                     .sort((a, b) => a.durationMs - b.durationMs)
@@ -564,10 +575,13 @@
                 ghostBikeEl.id = `ghost-bike-${index}`;
                 ghostBikeEl.innerHTML = `<span class="bike-initials">${ghostRun.initials}</span><span class="bike-speed">0.0</span>`;
                 raceView.appendChild(ghostBikeEl);
+                // Set initial position for ghost bike
+                const ghostLane = index + 1; // Ghosts start from lane 1
+                ghostBikeEl.style.left = `${ghostLane * laneWidth + bikeLeftOffset}px`;
                 bikes.push({
                     id: `ghost-bike-${index}`,
                     initials: ghostRun.initials,
-                    lane: index + 1,
+                    lane: ghostLane, // Use the assigned ghostLane
                     totalDistance: 0,
                     currentSpeed: 0,
                     element: ghostBikeEl,
@@ -578,16 +592,20 @@
                 });
             });
 
+            // Fill remaining lanes with BOTs (if not enough ghosts)
+            // The 'i' here will correctly represent the lane index for remaining bots
             for (let i = bikes.length; i < NUM_LANES; i++) {
                 const aiBikeEl = document.createElement('div');
                 aiBikeEl.classList.add('bike', 'ai');
                 aiBikeEl.id = `bot-bike-${i}`;
                 aiBikeEl.innerHTML = `<span class="bike-initials">BOT${i + 1}</span><span class="bike-speed">0.0</span>`;
                 raceView.appendChild(aiBikeEl);
+                // Set initial position for bot bike
+                aiBikeEl.style.left = `${i * laneWidth + bikeLeftOffset}px`; // Use 'i' as the lane index
                 bikes.push({
                     id: `bot-bike-${i}`,
                     initials: `BOT${i + 1}`,
-                    lane: i,
+                    lane: i, // Use 'i' as the lane index
                     totalDistance: 0,
                     currentSpeed: 0,
                     element: aiBikeEl,
@@ -596,6 +614,7 @@
                     aiAnswerInterval: (1000 + Math.random() * 500)
                 });
             }
+            // Sort bikes by lane for consistent rendering order (still good practice)
             bikes.sort((a,b) => a.lane - b.lane);
         }
 
