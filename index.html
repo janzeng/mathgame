@@ -532,16 +532,17 @@
         }
 
         // --- Bike Setup & AI Logic ---
-    function setupBikes() {
+        function setupBikes() {
             // Remove existing bikes from DOM
             bikes.forEach(bike => bike.element.remove());
             bikes = []; // Clear previous bike objects
 
-            // Calculate lane width once
+            // Calculate lane width and bike centering once
             const raceViewWidth = raceView.clientWidth;
             const laneWidth = raceViewWidth / NUM_LANES;
             const bikeWidth = 70; // From CSS: .bike width
             const bikeLeftOffset = (laneWidth - bikeWidth) / 2; // To center bike in its lane
+            const BIKE_START_BOTTOM = 20; // Consistent starting Y position for all bikes
 
             // Player bike
             const playerBikeEl = document.createElement('div');
@@ -549,8 +550,9 @@
             playerBikeEl.id = `player-bike`;
             playerBikeEl.innerHTML = `<span class="bike-initials">${playerInitials}</span><span class="bike-speed">0.0</span>`;
             raceView.appendChild(playerBikeEl);
-            // Set initial position for player bike
+            // Set initial position for player bike (both left and bottom)
             playerBikeEl.style.left = `${PLAYER_LANE * laneWidth + bikeLeftOffset}px`;
+            playerBikeEl.style.bottom = `${BIKE_START_BOTTOM}px`;
             bikes.push({
                 id: `player-bike`,
                 initials: playerInitials,
@@ -575,13 +577,14 @@
                 ghostBikeEl.id = `ghost-bike-${index}`;
                 ghostBikeEl.innerHTML = `<span class="bike-initials">${ghostRun.initials}</span><span class="bike-speed">0.0</span>`;
                 raceView.appendChild(ghostBikeEl);
-                // Set initial position for ghost bike
+                // Set initial position for ghost bike (both left and bottom)
                 const ghostLane = index + 1; // Ghosts start from lane 1
                 ghostBikeEl.style.left = `${ghostLane * laneWidth + bikeLeftOffset}px`;
+                ghostBikeEl.style.bottom = `${BIKE_START_BOTTOM}px`;
                 bikes.push({
                     id: `ghost-bike-${index}`,
                     initials: ghostRun.initials,
-                    lane: ghostLane, // Use the assigned ghostLane
+                    lane: ghostLane,
                     totalDistance: 0,
                     currentSpeed: 0,
                     element: ghostBikeEl,
@@ -600,12 +603,13 @@
                 aiBikeEl.id = `bot-bike-${i}`;
                 aiBikeEl.innerHTML = `<span class="bike-initials">BOT${i + 1}</span><span class="bike-speed">0.0</span>`;
                 raceView.appendChild(aiBikeEl);
-                // Set initial position for bot bike
-                aiBikeEl.style.left = `${i * laneWidth + bikeLeftOffset}px`; // Use 'i' as the lane index
+                // Set initial position for bot bike (both left and bottom)
+                aiBikeEl.style.left = `${i * laneWidth + bikeLeftOffset}px`;
+                aiBikeEl.style.bottom = `${BIKE_START_BOTTOM}px`;
                 bikes.push({
                     id: `bot-bike-${i}`,
                     initials: `BOT${i + 1}`,
-                    lane: i, // Use 'i' as the lane index
+                    lane: i,
                     totalDistance: 0,
                     currentSpeed: 0,
                     element: aiBikeEl,
