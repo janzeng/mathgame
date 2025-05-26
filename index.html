@@ -746,40 +746,45 @@
             });
         }
 
-        function updateFinishLinePosition() {
-            const raceViewHeight = raceView.clientHeight;
-            const playerBike = bikes.find(b => b.isPlayer);
-            if (!playerBike) return;
+    function updateFinishLinePosition() {
+        // Get the current dimensions and player bike.
+        const raceViewHeight = raceView.clientHeight;
+        const playerBike = bikes.find(b => b.isPlayer);
+        if (!playerBike) return;
 
-            // The finish line's virtual position is RACE_DISTANCE.
-            // We want it to move down the screen as the player's totalDistance increases.
-            
-            // Define the visual range on screen for the finish line's movement.
-            // It will move from START_TOP (off-screen above) to TARGET_TOP (near the top of the race view).
-            const TARGET_TOP = raceViewHeight * 0.1; // Settle 10% from the top of race-view
-            const START_TOP = -raceViewHeight * 1.5; // Start 1.5 screen heights above the top
-            
-            const totalVisualTravel = TARGET_TOP - START_TOP; // Total pixel distance the line will travel
+        // The finish line is at RACE_DISTANCE virtual units.
+        // We need to calculate its 'bottom' CSS property based on how far the player is from it.
+        
+        // Define the visual space the race occupies relative to the player.
+        // Player is at PLAYER_ANCHOR_Y (e.g., 20% from bottom of raceView).
+        // The finish line should be at a specific Y position (e.g., 90% from bottom).
+        const FINISH_LINE_TARGET_BOTTOM_PX = raceViewHeight * 0.9; // Where the line should end up on screen (e.g., 90% from bottom)
 
-            // Calculate the player's progress ratio towards the finish line.
-            // This ratio will go from 0 (at start) to 1 (at finish).
-            let progressRatio = playerBike.totalDistance / RACE_DISTANCE;
-            progressRatio = Math.min(Math.max(progressRatio, 0), 1); // Clamp between 0 and 1
+        // Calculate the delta in virtual distance between player and finish line:
+        // This is how much virtual distance is *left* for the player to travel to the finish line.
+        const virtualDistanceRemaining = RACE_DISTANCE - playerBike.totalDistance;
 
-            // Calculate the current top position based on progressRatio.
-            // As progressRatio goes from 0 to 1, currentTop will go from START_TOP to TARGET_TOP.
-            let currentTop = START_TOP + (progressRatio * totalVisualTravel);
+        // Reuse the DISTANCE_TO_PIXEL_SCALE from updateBikePositions.
+        // This ensures the finish line moves at the same visual rate as the bikes.
+        const DISTANCE_TO_PIXEL_SCALE = raceViewHeight / (RACE_DISTANCE * 2); 
+        
+        // The `bottom` position of the finish line is calculated as:
+        // Its target position on screen MINUS the remaining virtual distance, scaled to pixels.
+        // When virtualDistanceRemaining is 0 (player at finish), `currentBottom` is `FINISH_LINE_TARGET_BOTTOM_PX`.
+        // When virtualDistanceRemaining is large (finish line far ahead), `currentBottom` will be less than `FINISH_LINE_TARGET_BOTTOM_PX`,
+        // correctly placing it further down the screen, potentially off-screen at the bottom.
+        let currentBottom = FINISH_LINE_TARGET_BOTTOM_PX - (virtualDistanceRemaining * DISTANCE_TO_PIXEL_SCALE);
 
-            finishLineElement.style.top = `${currentTop}px`;
+        finishLineElement.style.bottom = `${currentBottom}px`;
 
-            // Ensure visibility or hide if too far off-screen.
-            // If currentTop is very large (off-screen above) or below the screen.
-            if (currentTop < -finishLineElement.clientHeight || currentTop > raceViewHeight) {
-                finishLineElement.style.display = 'none';
-            } else {
-                finishLineElement.style.display = 'block';
-            }
+        // Display logic: show only when it's potentially visible on screen
+        // Hide if it's completely below the screen, or completely above the screen.
+        if (currentBottom < -finishLineElement.clientHeight || currentBottom > raceViewHeight) {
+            finishLineElement.style.display = 'none';
+        } else {
+            finishLineElement.style.display = 'block';
         }
+    }
 
         // --- Math Problem Logic ---
         function getRandomNumber(min, max) {
