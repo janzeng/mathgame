@@ -338,6 +338,14 @@
     <div id="countdown"></div>
 
     <script>
+        // --- Sound Elements ---
+        // Sound Affect Attribution
+        // Pre-Match Countdown.wav by TheRandomSoundByte2637
+        // https://freesound.org/s/651010/
+        // License: Attribution 4.0
+        const countdownSound = new Audio('assets/651010__therandomsoundbyte2637__pre-match-countdown.wav');
+        countdownSound.volume = 0.6; // Adjust volume as needed, between 0 and 1
+
         // --- Game Constants ---
         const RACE_DISTANCE = 1000; // Virtual units for the race length
         const SPEED_INCREMENT_PER_CORRECT_ANSWER = 0.546; // Calculated to target ~1 min race for 1 problem/sec
@@ -640,6 +648,8 @@
 
             let count = 3;
             countdownDisplay.textContent = count;
+            countdownSound.currentTime = 0; // Ensure sound starts from beginning
+            countdownSound.play();
             const countdownInterval = setInterval(() => {
                 count--;
                 if (count > 0) {
