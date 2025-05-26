@@ -129,6 +129,7 @@
             border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.1s;
+            font-family: 'Press Start 2P', cursive; /* Apply retro font */
             box-shadow: 0 4px 10px rgba(0,0,0,0.4);
         }
         #new-game-button:hover {
@@ -926,6 +927,9 @@
                 feedbackMessage.style.color = 'orange';
             }
             feedbackMessage.textContent = message;
+
+            problemText.textContent = ''; // Clear the problem text
+            answerDisplay.textContent = ''; // Clear any leftover answer display
 
             newGameButton.style.display = 'block';
             // The pre-game-setup overlay remains hidden until the New Game button is clicked
