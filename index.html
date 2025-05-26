@@ -646,22 +646,27 @@
             setupBikes();
             resetGameStates(); // Reset bike positions and speeds for the new race
 
-            let count = 3;
             countdownDisplay.textContent = count;
             countdownSound.currentTime = 0; // Ensure sound starts from beginning
             countdownSound.play();
-            const countdownInterval = setInterval(() => {
-                count--;
-                if (count > 0) {
-                    countdownDisplay.textContent = count;
-                } else if (count === 0) {
-                    countdownDisplay.textContent = 'GO!';
-                } else {
-                    clearInterval(countdownInterval);
-                    countdownDisplay.style.display = 'none';
-                    startGame();
-                }
-            }, 1000);
+
+            // Delay the start of the visual countdown
+            setTimeout(() => {
+                let count = 3;
+                countdownDisplay.textContent = count;
+                const countdownInterval = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        countdownDisplay.textContent = count;
+                    } else if (count === 0) {
+                        countdownDisplay.textContent = 'GO!';
+                    } else {
+                        clearInterval(countdownInterval);
+                        countdownDisplay.style.display = 'none';
+                        startGame();
+                    }
+                }, 1000); // Visual countdown ticks every 1 second
+            }, 750); // Initial delay before '3' appears
         }
 
         function startGame() {
